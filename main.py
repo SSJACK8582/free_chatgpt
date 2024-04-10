@@ -60,7 +60,7 @@ def get_message(messages):
             for line in resp.iter_lines():
                 if line:
                     string = line.decode()
-                    if 'data: [DONE]' != string:
+                    if '{' in string:
                         data = json.loads(string[6:])
                         message = data.get('message', {})
                         if 'assistant' == message.get('author', {}).get('role'):
