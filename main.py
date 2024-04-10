@@ -20,13 +20,17 @@ headers = {
 
 def set_token():
     url = 'https://chat.openai.com/backend-anon/sentinel/chat-requirements'
-    headers['oai-device-id'] = str(uuid.uuid4())
     while True:
+        device_id = str(uuid.uuid4())
+        head = headers.copy()
+        head['oai-device-id'] = device_id
+        head['openai-sentinel-chat-requirements-token'] = ''
         try:
-            resp = requests.post(url=url, headers=headers, json={})
+            resp = requests.post(url=url, headers=head, json={})
             resp_json = json.loads(resp.text)
-            print(resp_json)
-            headers['openai-sentinel-chat-requirements-token'] = resp_json.get('token')
+            print(resp_json['token'])
+            headers['oai-device-id'] = device_id
+            headers['openai-sentinel-chat-requirements-token'] = resp_json['token']
         except Exception as e:
             print(e)
         time.sleep(60)
@@ -52,21 +56,19 @@ def get_message(messages):
         'websocket_request_id': str(uuid.uuid4())
     }
     try:
-        data = {}
         with requests.post(url=url, headers=headers, json=payload, stream=True) as resp:
             for line in resp.iter_lines():
                 if line:
                     string = line.decode()
                     if 'data: [DONE]' != string:
-                        data = json.loads(string[len('data: '):])
+                        data = json.loads(string[6:])
                         message = data.get('message', {})
                         if 'assistant' == message.get('author', {}).get('role'):
                             parts = message.get('content', {}).get('parts', [''])
                             if 'in_progress' == message.get('status'):
                                 yield parts[0]
-        print(data)
     except Exception as e:
-        print(e)
+        yield str(e)
 
 
 def get_completion_id():
@@ -97,6 +99,7 @@ def get_result(messages):
                 },
             ],
         }))
+    print(string)
     yield 'data: {}\n\n'.format(json.dumps({
         'id': completion_id,
         'object': 'chat.completion.chunk',
